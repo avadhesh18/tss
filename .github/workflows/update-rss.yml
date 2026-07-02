@@ -22,7 +22,7 @@ jobs:
           node-version: 20
 
       - name: Install deps
-        run: npm install rss-parser
+        run: npm install rss-parser node-fetch
 
       - name: Generate feeds
         run: node scripts/build-rss.js
