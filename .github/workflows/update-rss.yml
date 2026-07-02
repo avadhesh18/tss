@@ -1,0 +1,36 @@
+name: Update Animals RSS
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 */23 * * *"   # every 6 hours
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install deps
+        run: npm install rss-parser
+
+      - name: Generate feeds
+        run: node scripts/build-rss.js
+
+      - name: Commit changes
+        run: |
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git add docs/*.xml
+          git diff --cached --quiet || git commit -m "Update RSS feeds"
+          git push
