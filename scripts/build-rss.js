@@ -10,6 +10,20 @@ const parser = new Parser({
     }
 });
 
+async function fetchFeed(url) {
+    const res = await fetch(url, {
+        headers: {
+            "User-Agent": "Mozilla/5.0 (compatible; animalrssbot/1.0; +github)"
+        }
+    });
+
+    if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+    }
+
+    return await res.text();
+}
+
 function cleanImage(url) {
     if (!url) return null;
 
@@ -31,9 +45,7 @@ function extractImage(item) {
     const html = item.content || item.contentEncoded || "";
     const match = html.match(/<img[^>]+src="([^"]+)"/i);
 
-    if (match) {
-        return cleanImage(match[1]);
-    }
+    if (match) return cleanImage(match[1]);
 
     return null;
 }
@@ -50,7 +62,7 @@ function escapeXml(str = "") {
 function buildRSS(channelTitle, items) {
     let xml = `<?xml version="1.0" encoding="UTF-8"?>
 <rss version="2.0"
-     xmlns:media="http://search.yahoo.com/mrss/">
+xmlns:media="http://search.yahoo.com/mrss/">
 <channel>
 <title>${escapeXml(channelTitle)}</title>
 <link>https://github.com</link>
@@ -62,15 +74,12 @@ function buildRSS(channelTitle, items) {
 <item>
 <title>${escapeXml(item.title)}</title>
 <link>${escapeXml(item.link)}</link>
-
 <description><![CDATA[
 <img src="${item.image}" />
 ]]></description>
-
-<media:content url="${escapeXml(item.image)}" medium="image" type="image/jpeg" />
-<media:thumbnail url="${escapeXml(item.image)}" />
-
-<enclosure url="${escapeXml(item.image)}" type="image/jpeg" length="0" />
+<media:content url="${escapeXml(item.image)}" medium="image" type="image/jpeg"/>
+<media:thumbnail url="${escapeXml(item.image)}"/>
+<enclosure url="${escapeXml(item.image)}" type="image/jpeg" length="0"/>
 </item>
 `;
     }
@@ -83,10 +92,11 @@ function buildRSS(channelTitle, items) {
 }
 
 async function build(subreddit, outputFile) {
-    const feed = await parser.parseURL(
+    const xmlText = await fetchFeed(
         `https://www.reddit.com/r/${subreddit}/.rss`
     );
 
+    const feed = await parser.parseString(xmlText);
     const items = [];
 
     for (const item of feed.items) {
@@ -100,10 +110,12 @@ async function build(subreddit, outputFile) {
         });
     }
 
-    const xml = buildRSS(`notitlerandom-${subreddit}`, items);
-
     fs.mkdirSync("docs", { recursive: true });
-    fs.writeFileSync(outputFile, xml, "utf8");
+    fs.writeFileSync(
+        outputFile,
+        buildRSS(`notitlerandom-${subreddit}`, items),
+        "utf8"
+    );
 }
 
 (async () => {
